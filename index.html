@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Name — Portfolio</title>
+<meta name="description" content="Interactive 3D portfolio">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0607;
+    --fg: #e8ecff;
+    --muted: #cfc5c6;
+    --a: #ffb347;
+    --b: #ff4d6d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: auto; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  canvas#bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
+  main { position: relative; z-index: 1; pointer-events: none; }
+  section {
+    min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+    padding: 0 max(16px, 7vw);
+  }
+  .panel {
+    max-width: 500px; opacity: 0; transform: translateY(40px);
+    transition: opacity .9s ease, transform .9s ease; pointer-events: auto;
+  }
+  section.in .panel { opacity: 1; transform: none; }
+  #hero .panel { max-width: 720px; }
+  #projects { justify-content: center; padding-top: 0; }
+  #projects .panel { max-width: min(340px, 24vw); transition: opacity .6s ease, transform .9s ease; }
+  .focusing #projects .panel { opacity: 0 !important; pointer-events: none; }
+  @media (max-width: 900px) {
+    #projects { justify-content: flex-start; padding-top: max(11vh, 76px); }
+    #projects .panel { max-width: 100%; padding: 1rem 1.3rem; }
+    #projects .panel p, #projects .panel .chips { display: none; }
+  }
+  #skills .panel { margin-left: auto; text-align: right; }
+  .eyebrow { color: var(--a); letter-spacing: .3em; text-transform: uppercase; font-size: .72rem; font-weight: 500; margin-bottom: .8rem; }
+  h1 { font-size: clamp(2.4rem, 6.5vw, 5rem); line-height: .95; font-weight: 700; letter-spacing: -.03em; }
+  h1, h2 { color: #fff; }
+  h1 span, h2 span { color: inherit; }
+  h2 { font-size: clamp(1.6rem, 3.4vw, 2.5rem); line-height: 1; font-weight: 700; letter-spacing: -.02em; margin-bottom: .9rem; }
+  p { color: var(--muted); font-size: 1rem; line-height: 1.6; font-weight: 400; }
+  .panel {
+    padding: 1.3rem 1.6rem; border-radius: 20px; border: 1px solid #ffffff12;
+    background: linear-gradient(135deg, rgba(10,6,7,.82), rgba(10,6,7,.58));
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+  #hint {
+    position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 16px); z-index: 7; pointer-events: none;
+    display: flex; align-items: center; gap: .7rem; padding: .6rem 1.1rem; border-radius: 99px; font-size: .85rem; color: var(--fg);
+    background: rgba(10,6,7,.78); border: 1px solid #ffb34766; backdrop-filter: blur(8px); opacity: 0; transition: opacity .6s, transform .6s;
+  }
+  #hint.show { opacity: 1; transform: translate(-50%, 0); }
+  #hint i { width: 10px; height: 10px; border-radius: 50%; background: var(--a); box-shadow: 0 0 0 0 #ffb347aa; animation: ping 1.8s infinite; }
+  @keyframes ping { 70% { box-shadow: 0 0 0 12px #ffb34700; } 100% { box-shadow: 0 0 0 0 #ffb34700; } }
+  .tagline { margin-top: 1.2rem; font-size: 1.1rem; max-width: 460px; }
+  .hint { margin-top: 2.5rem; display: flex; align-items: center; gap: .8rem; font-size: .8rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+  .hint i { width: 1px; height: 40px; background: linear-gradient(var(--a), transparent); animation: drip 1.8s infinite; }
+  @keyframes drip { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
+  #skills .chips { justify-content: flex-end; }
+  .chip { border: 1px solid #ffffff2e; border-radius: 99px; padding: .3rem .8rem; font-size: .78rem; color: var(--fg); background: #ffffff12; }
+  .links { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; }
+  .btn {
+    pointer-events: auto; text-decoration: none; color: var(--fg); padding: .7rem 1.3rem; font-size: .92rem; border-radius: 99px;
+    border: 1px solid #ffffff33; background: #ffffff0a; backdrop-filter: blur(8px); transition: all .25s; font-weight: 500;
+  }
+  .btn:hover { border-color: var(--a); box-shadow: 0 0 24px #ffb34755; transform: translateY(-2px); }
+  .btn.primary { background: linear-gradient(100deg, #ffb347, #ff4d6d); color: #0a0607; border: 0; }
+  #contact { align-items: center; text-align: center; }
+  #contact .panel { max-width: 640px; }
+  #contact .links { justify-content: center; }
+
+  nav { position: fixed; right: 22px; top: 50%; transform: translateY(-50%); z-index: 5; display: flex; flex-direction: column; gap: 14px; }
+  nav button {
+    width: 12px; height: 12px; border-radius: 50%; border: 1px solid #ffffff66; background: transparent; cursor: pointer; position: relative; transition: all .3s;
+  }
+  nav button.on { background: var(--a); border-color: var(--a); box-shadow: 0 0 12px var(--a); transform: scale(1.3); }
+  nav button span {
+    position: absolute; right: 24px; top: 50%; transform: translateY(-50%); font-size: .7rem; letter-spacing: .15em; text-transform: uppercase;
+    color: var(--fg); opacity: 0; transition: opacity .2s; white-space: nowrap; pointer-events: none;
+  }
+  nav button:hover span { opacity: 1; }
+  .brand { position: fixed; left: max(16px, 7vw); top: 24px; z-index: 5; font-weight: 700; letter-spacing: .1em; font-size: .8rem; }
+  .brand b { color: var(--a); }
+  #progress { position: fixed; left: 0; top: 0; height: 2px; width: 0; background: linear-gradient(90deg, var(--a), var(--b)); z-index: 6; }
+
+  #modal {
+    position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px;
+    background: #0a0607cc; backdrop-filter: blur(10px); opacity: 0; pointer-events: none; transition: opacity .3s;
+  }
+  #modal.open { opacity: 1; pointer-events: auto; }
+  #modal .box {
+    max-width: 520px; width: 100%; border: 1px solid #ffffff22; border-radius: 20px; padding: 2rem;
+    background: linear-gradient(160deg, #241014, #120808); transform: scale(.94); transition: transform .3s;
+  }
+  #modal.open .box { transform: none; }
+  #modal h3 { font-size: 2rem; margin-bottom: .8rem; }
+  #modal .row { display: flex; gap: .8rem; margin-top: 1.5rem; }
+  #modal .btn { cursor: pointer; font: inherit; }
+
+  #detail {
+    position: fixed; right: max(16px, 5vw); top: 50%; transform: translateY(-50%) translateX(30px);
+    width: min(400px, calc(100vw - 32px)); max-height: 80vh; overflow: auto; z-index: 8; padding: 1.5rem;
+    border: 1px solid #ffffff22; border-radius: 20px; background: linear-gradient(160deg, #241014ee, #120808ee);
+    backdrop-filter: blur(14px); opacity: 0; pointer-events: none; transition: opacity .4s, transform .4s;
+  }
+  #detail.open { opacity: 1; pointer-events: auto; transform: translateY(-50%); }
+  #detail h3 { font-size: 1.6rem; line-height: 1.1; margin-bottom: .8rem; }
+  #detail .chips { margin-top: 1rem; }
+  #detail .row { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.4rem; }
+  #detail .btn { cursor: pointer; font: inherit; padding: .6rem 1.1rem; }
+  @media (max-width: 700px) { #detail { top: auto; bottom: 16px; right: 16px; transform: translateY(30px); max-height: 46vh; } #detail.open { transform: none; } }
+  #fallback { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 2rem; z-index: 20; background: var(--bg); }
+  #loader { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: var(--bg); transition: opacity .8s; letter-spacing: .4em; font-size: .8rem; color: var(--a); }
+  #loader.done { opacity: 0; pointer-events: none; }
+  @media (max-width: 700px) { nav { right: 10px; } #skills .panel { text-align: left; margin-left: 0; } #skills .chips { justify-content: flex-start; } }
+  @media (prefers-reduced-motion: reduce) { .panel { transition: none; } .hint i { animation: none; } }
+</style>
+</head>
+<body>
+<div id="loader">LOADING</div>
+<div id="fallback"><div><h2>WebGL isn't available</h2><p>Try a different browser to see the 3D experience.</p></div></div>
+<div id="progress"></div>
+<div class="brand" id="brand"></div>
+<nav id="nav" aria-label="Sections"></nav>
+<canvas id="bg"></canvas>
+<main id="content"></main>
+<aside id="detail" aria-live="polite"></aside>
+<div id="hint"><i></i>Click a planet to fly to it</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ============================================================
+   EDIT THIS: all of your content lives here.
+   ============================================================ */
+const CONFIG = {
+  name: 'Abhik Rao',
+  role: 'CS & AI · IIIT Delhi',
+  tagline: 'I design, train and rigorously evaluate machine learning systems, from research models to edge deployments.',
+  about: [
+    "I'm a B.Tech CSAI student at IIIT Delhi (batch of 2029, CGPA 8.60). I like the parts of machine learning that are easy to skip: clean data splits, frozen holdouts, calibration, and reporting the failures next to the wins.",
+    "My foundations are in algorithms and systems: a C++ Rubik's Cube solver with Korf's IDA*, a RISC-V assembler and a TF-IDF search engine written from scratch. On top of that I research medical prescription understanding and build end-to-end systems, placing Top 8 at Qualcomm's Snapdragon Multiverse Hackathon and Top 15 of 4,300+ teams at TinyFish."
+  ],
+
+  skills: ['Python', 'C/C++', 'Java', 'SQL', 'PyTorch', 'OpenCV', 'Hugging Face', 'scikit-learn', 'React', 'Next.js', 'Three.js', 'FastAPI', 'MATLAB', 'Swift', 'Docker', 'Git'],
+  projects: [
+    // ---- Hackathons (top row), ranked: first 2 are featured ----
+    { row: 'hackathon', title: 'SafeSite AI', event: 'Qualcomm Snapdragon Multiverse', badge: 'Top 8 / 60',
+      desc: 'Real-time construction safety: PPE, restricted-zone and fall detection with YOLO + OpenCV, accelerated on the Hexagon NPU.',
+      detail: 'Edge-to-edge system: an Arduino UNO Q runs a lightweight person detector and only wakes the heavier NPU pipeline on a Snapdragon X Elite PC when someone walks into frame, saving compute and power. Includes a web dashboard and Arduino alarm. Built in 24 hours at Qualcomm Noida; Top 8 of 60 shortlisted teams.',
+      tags: ['YOLO', 'OpenCV', 'Edge AI'], link: 'https://github.com/garvrao80/SafeSite-AI-Qualcomm' },
+    { row: 'hackathon', title: 'NetrAI', event: 'Smart India Hackathon 2026', badge: 'SIH26038',
+      desc: 'Explainable diabetic retinopathy screening for rural care, plus a SimEvents model of district screening capacity.',
+      detail: 'MATLAB pipeline with image-quality checks, EfficientNet-B4 ONNX grading, Grad-CAM reports and a SimEvents capacity simulation. MathWorks-sponsored problem statement. Research prototype with honest, documented external-validation limits.',
+      tags: ['MATLAB', 'Simulink', 'Grad-CAM'], link: 'https://github.com/AbhikRao/Netrai' },
+    { row: 'hackathon', title: 'AutoApply', event: 'TinyFish $2M Pre-Accelerator', badge: 'Top 15 / 4,300+',
+      desc: 'Autonomous agent that fills and submits job applications on Greenhouse, Lever, Workday and LinkedIn while you watch live.',
+      detail: 'Give it a job URL and your profile; a TinyFish web agent reads the job description, discovers form fields at runtime, answers screening questions, uploads your resume and submits. Advanced to the Phase 2 Accelerator.',
+      tags: ['TinyFish', 'Node.js', 'Agents'], link: 'https://github.com/AbhikRao/autoapply' },
+    { row: 'hackathon', title: 'CardioScope', event: 'Multimodal AI Hackathon 2026', badge: 'Track A',
+      desc: 'Click an artery on a real 3D heart to see frozen model predictions, SHAP explanations and honest holdout evidence.',
+      detail: 'Four frozen classifiers (CAD, LAD, LCX, RCA) on the UCI Z-Alizadeh Sani data, mapped onto 83 BodyParts3D meshes. CAD ROC-AUC 0.913 on a one-shot holdout. React + Three.js frontend, FastAPI backend, 134 Python and 75 frontend tests.',
+      tags: ['React', 'Three.js', 'SHAP'], link: 'https://github.com/AbhikRao/CardioScope' },
+    { row: 'hackathon', title: 'Contraflow', event: 'Graph Hacks 2026', badge: 'Track 01',
+      desc: 'Graph-native road-access planning on FalkorDB with a local Qwen agent that investigates closures and ranks repairs.',
+      detail: "Chennai's Adyar corridor modeled as 3,483 junctions and 8,458 directed segments from OpenStreetMap. Shows one bridge closure changes nothing while another adds ~12 km; a human approves every change. Includes MCP tools and exportable case files.",
+      tags: ['FalkorDB', 'FastAPI', 'Qwen'], link: 'https://github.com/AbhikRao/Contraflow' },
+    { row: 'hackathon', title: 'ChipSentry', event: 'AI4S Open Innovation', badge: 'Tool & Platform',
+      desc: 'Auditable CPU review queue for organ-on-chip microscopy, with frozen grouped validation and reproducible evidence.',
+      detail: 'Ranks 580 held-out images so reviewers see likely errors first: at 30% review, entropy flags 69 errors vs 50.4 by chance. Local CPU inference, audit-JSON export, and negative results reported openly.',
+      tags: ['PyTorch', 'Inception', 'CPU'], link: 'https://github.com/AbhikRao/ChipSentry' },
+    { row: 'hackathon', title: 'Code Guardian', event: 'AMD Developer Hackathon 2026', badge: 'MI300X',
+      desc: 'Self-healing review pipeline: scans a repo, patches bugs, writes tests, runs them in Docker and opens a PR.',
+      detail: 'Scanner, Fixer, Test Writer, Executor and Reporter agents powered by Llama 3.3 70B. Tests run in a locked-down Docker sandbox (no network, read-only). Live Streamlit app available.',
+      tags: ['Llama 3.3', 'Docker', 'Streamlit'], link: 'https://github.com/AbhikRao/code-guardian' },
+    { row: 'hackathon', title: 'ClearBid', event: 'AI for Bharat · Theme 3', badge: 'CRPF Tenders',
+      desc: 'AI procurement auditor that evaluates tender bidders criterion by criterion with citations and a human review queue.',
+      detail: 'Extracts eligibility criteria from a tender, checks each bidder with evidence citations and confidence scores, routes ambiguous cases to humans, and exports a PDF audit report.',
+      tags: ['Claude', 'FastAPI', 'ReportLab'], link: 'https://github.com/AbhikRao/ClearBid' },
+    // ---- Projects (bottom row), ranked ----
+    { row: 'project', title: 'Prescription Pipeline', event: 'Summer project · Dr. Vinish Kutharia', badge: '84.6% precision',
+      desc: 'Handwritten medicine recognition with TrOCR, LayoutLMv3 and BioBERT, plus drug validation.',
+      detail: 'Summer research project under Dr. Vinish Kutharia at IIIT Delhi. Fine-tuned LayoutLMv3, integrated OCR with drug-validation modules, and reached 84.6% precision on the MIRAGE benchmark using synthetic data augmentation.',
+      tags: ['TrOCR', 'LayoutLMv3', 'Gradio'], link: '' },
+    { row: 'project', title: "Rubik's Cube Solver", event: 'Personal project', badge: 'IDA* < 10s',
+      desc: "C++ solver using Korf's IDA*, BFS, DFS and IDDFS; solves a 13-move scramble in under 10 seconds.",
+      detail: 'Object-oriented 3x3 cube model with STL containers, virtual functions, inheritance and operator overloading. IDDFS/BFS/DFS reach under 3 seconds on 8-move scrambles.',
+      tags: ['C++', 'IDA*', 'OOP'], link: '' },
+    { row: 'project', title: 'DSA Search Engine', event: 'Personal project', badge: '3,500+ problems',
+      desc: 'Search across 3,500+ LeetCode and Codeforces problems using TF-IDF and cosine similarity.',
+      detail: 'Puppeteer scrapes dynamic pages into a structured corpus; precomputed document vectors and an Express.js API rank the top 10 matches with title boosting.',
+      tags: ['Node.js', 'TF-IDF', 'Puppeteer'], link: '' },
+    { row: 'project', title: 'ESC-50 Sound Classifier', event: 'Self project', badge: '93.25% acc',
+      desc: 'Audio Spectrogram Transformer with a frozen encoder: 93.25% accuracy training only 0.046% of parameters.',
+      detail: 'Linear probe on ESC-50 using MIT/ast-finetuned-audioset: folds 1-4 train, fold 5 test, 39,986 trainable parameters out of 86M.',
+      tags: ['PyTorch', 'AST', 'Hugging Face'], link: 'https://github.com/AbhikRao/esc50-ast-linear-probe' },
+    { row: 'project', title: 'RISC-V Assembler', event: 'Course project', badge: 'R I S B U J',
+      desc: 'Python assembler and simulator for all six RISC-V instruction formats with error handling.',
+      detail: 'Virtual registers and memory, robust handling of invalid instructions, syntax errors and memory access violations.',
+      tags: ['Python', 'RISC-V'], link: '' },
+    { row: 'project', title: 'LyricsNotch', event: 'macOS app', badge: 'Swift',
+      desc: 'Spotify synced lyrics in the MacBook notch, with hover expansion and album-art glow.',
+      detail: 'A standalone macOS notch app built in Swift, fetching synced lyrics from LRCLIB. Has a live landing page.',
+      tags: ['Swift', 'macOS', 'Spotify'], link: 'https://lyricsnotch.vercel.app' },
+    { row: 'project', title: 'LeadHunter AI', event: 'TinyFish Web Agent', badge: 'Agent',
+      desc: 'Autonomous B2B lead research: a browser agent finds decision-makers and streams its actions live.',
+      detail: 'Given a company and a role, the agent searches Google, visits LinkedIn profiles and company sites, and returns structured contacts with confidence scores, exportable to CSV.',
+      tags: ['TinyFish', 'Node.js', 'SSE'], link: 'https://github.com/AbhikRao/leadhunter-ai' },
+    { row: 'project', title: 'Delhi Metro Planner', event: 'Python project', badge: 'Routing',
+      desc: 'Train timings and journey planning for the Delhi Metro Blue and Magenta lines, with interchanges and fares.',
+      detail: 'Loads station and travel-time data per line, generates every train arrival through the day using peak and off-peak headways, and finds the fastest journey across lines by comparing interchange options (waiting time, in-train time and interchange delay). Also includes a fare calculator.',
+      tags: ['Python', 'Algorithms'], link: 'https://github.com/AbhikRao/delhi-metro-simulator' }
+  ],
+  contact: {
+    blurb: "Open to research internships, hackathon teams and interesting problems. My inbox is open.",
+    email: 'abhik25025@iiitd.ac.in',
+    links: [
+      { label: 'GitHub',   href: 'https://github.com/AbhikRao' },
+      { label: 'LinkedIn', href: 'https://www.linkedin.com/in/abhik-rao-38611b36a/' },
+      { label: 'Resume',   href: 'resume.pdf', download: true }
+    ]
+  },
+  // Cool theme (previous): a: 0x3df2ff, b: 0xff3df0
+  colors: { a: 0xffb347, b: 0xff4d6d },
+  // Projects are ranked by their order in the list: the first 2 per row are "featured" and sit in the centre.
+  featuredPerRow: 2
+};
+
+/* ---------- build the HTML from CONFIG ---------- */
+const $ = (s) => document.querySelector(s);
+const el = (tag, props = {}, ...kids) => {
+  const n = Object.assign(document.createElement(tag), props);
+  kids.flat().forEach((k) => n.append(k));
+  return n;
+};
+document.title = `${CONFIG.name} — Portfolio`;
+$('#brand').innerHTML = '';
+$('#brand').append(CONFIG.name.toUpperCase().replace(/\s+/g, ' '), el('b', { textContent: ' /' }));
+
+const [first, ...rest] = CONFIG.name.split(' ');
+const sections = [
+  { id: 'hero', label: 'Home', node: el('div', { className: 'panel' },
+      el('div', { className: 'eyebrow', textContent: CONFIG.role }),
+      el('h1', {}, first + ' ', el('span', { textContent: rest.join(' ') || '.' })),
+      el('p', { className: 'tagline', textContent: CONFIG.tagline }),
+      el('div', { className: 'hint' }, el('i'), 'Scroll to explore')) },
+  { id: 'about', label: 'About', node: el('div', { className: 'panel' },
+      el('div', { className: 'eyebrow', textContent: '01 — About' }),
+      el('h2', {}, 'A little ', el('span', { textContent: 'about me' })),
+      CONFIG.about.map((t) => el('p', { textContent: t, style: 'margin-bottom:1rem' }))) },
+  { id: 'skills', label: 'Skills', node: el('div', { className: 'panel' },
+      el('div', { className: 'eyebrow', textContent: '02 — Toolkit' }),
+      el('h2', {}, 'Things I ', el('span', { textContent: 'orbit' })),
+      el('p', { textContent: 'The tools and technologies I reach for most often.' }),
+      el('div', { className: 'chips' }, CONFIG.skills.map((s) => el('span', { className: 'chip', textContent: s })))) },
+  { id: 'projects', label: 'Work', node: el('div', { className: 'panel' },
+      el('div', { className: 'eyebrow', textContent: '03 — Selected work' }),
+      el('h2', {}, 'Hackathons & ', el('span', { textContent: 'projects' })),
+      el('p', { textContent: 'Every planet is something I built. Click one to fly to it; use the arrow keys to hop between them.' }),
+      el('div', { className: 'chips' }, ['Inner orbit: hackathons', 'Outer orbit: projects', '\u2605 Featured'].map((t) => el('span', { className: 'chip', textContent: t })))) },
+  { id: 'contact', label: 'Contact', node: el('div', { className: 'panel' },
+      el('div', { className: 'eyebrow', textContent: '04 — Contact' }),
+      el('h2', {}, 'Let\'s ', el('span', { textContent: 'talk' })),
+      el('p', { textContent: CONFIG.contact.blurb }),
+      el('div', { className: 'links' },
+        el('a', { className: 'btn primary', href: `mailto:${CONFIG.contact.email}`, textContent: CONFIG.contact.email }),
+        CONFIG.contact.links.map((l) => el('a', l.download ? { className: 'btn', href: l.href, download: 'Abhik_Rao_Resume.pdf', textContent: l.label } : { className: 'btn', href: l.href, target: '_blank', rel: 'noopener', textContent: l.label })))) }
+];
+const content = $('#content'), nav = $('#nav');
+const sectionEls = sections.map((s, i) => {
+  const sec = el('section', { id: s.id }, s.node);
+  content.append(sec);
+  const b = el('button', { ariaLabel: s.label }, el('span', { textContent: s.label }));
+  b.onclick = () => window.scrollTo({ top: i * innerHeight, behavior: 'smooth' });
+  nav.append(b);
+  return sec;
+});
+const io = new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle('in', e.isIntersecting)), { threshold: 0.35 });
+sectionEls.forEach((s) => io.observe(s));
+
+/* ---------- WebGL setup ---------- */
+const canvas = $('#bg');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+} catch (e) { $('#fallback').style.display = 'grid'; throw e; }
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0607);
+scene.fog = new THREE.FogExp2(0x0a0607, 0.012);
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 400);
+camera.position.set(0, 0, 10);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.55, 0.5, 0.6);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+const colA = new THREE.Color(CONFIG.colors.a), colB = new THREE.Color(CONFIG.colors.b);
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+const l1 = new THREE.PointLight(CONFIG.colors.a, 60, 60); l1.position.set(6, 4, 6); scene.add(l1);
+const l2 = new THREE.PointLight(CONFIG.colors.b, 60, 60); l2.position.set(-6, -3, 4); scene.add(l2);
+
+/* ---------- starfield tunnel ---------- */
+{
+  const N = 5000, pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const r = 6 + Math.random() * 60, a = Math.random() * Math.PI * 2;
+    pos.set([Math.cos(a) * r, (Math.random() - 0.5) * 60, 30 - Math.random() * 190], i * 3);
+    const c = colA.clone().lerp(colB, Math.random()).lerp(new THREE.Color(1, 1, 1), 0.5);
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const stars = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.12, vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }));
+  stars.name = 'stars';
+  scene.add(stars);
+}
+
+/* ---------- floating debris shapes ---------- */
+const debris = [];
+{
+  const geos = [new THREE.OctahedronGeometry(0.5), new THREE.TetrahedronGeometry(0.55), new THREE.IcosahedronGeometry(0.45), new THREE.BoxGeometry(0.6, 0.6, 0.6)];
+  for (let i = 0; i < 70; i++) {
+    const m = new THREE.Mesh(geos[i % 4], new THREE.MeshBasicMaterial({ color: colA.clone().lerp(colB, Math.random()), wireframe: true, transparent: true, opacity: 0.55 }));
+    const a = Math.random() * Math.PI * 2, r = 7 + Math.random() * 14;
+    m.position.set(Math.cos(a) * r, (Math.random() - 0.5) * 18, 8 - Math.random() * 110);
+    m.scale.setScalar(0.6 + Math.random() * 1.8);
+    m.userData = { s: new THREE.Vector3(Math.random(), Math.random(), Math.random()).multiplyScalar(0.5), y: m.position.y, p: Math.random() * 6 };
+    debris.push(m); scene.add(m);
+  }
+}
+
+/* ---------- 1. HERO: living shader orb ---------- */
+const uniforms = { uTime: { value: 0 }, uFade: { value: 1 }, uA: { value: colA }, uB: { value: colB }, uMouse: { value: new THREE.Vector2() } };
+const orbMat = (wire) => new THREE.ShaderMaterial({
+  uniforms, wireframe: wire, transparent: true,
+  vertexShader: `
+    uniform float uTime; uniform vec2 uMouse; varying vec3 vN; varying vec3 vV;
+    void main(){
+      float n = sin(position.x*1.7+uTime)*sin(position.y*1.9+uTime*1.1)*sin(position.z*1.6+uTime*.9);
+      float m = 1.0 + .35*dot(normalize(position.xy+1e-4), uMouse) ;
+      vec3 p = position + normal*(n*.5*m);
+      vec4 mv = modelViewMatrix*vec4(p,1.);
+      vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz);
+      gl_Position = projectionMatrix*mv;
+    }`,
+  fragmentShader: `
+    uniform float uTime; uniform float uFade; uniform vec3 uA; uniform vec3 uB; varying vec3 vN; varying vec3 vV;
+    void main(){
+      float f = pow(1.-max(dot(normalize(vN),normalize(vV)),0.), 2.2);
+      vec3 c = mix(uA,uB,clamp(f+.25*sin(uTime*.7+vN.y*2.),0.,1.));
+      gl_FragColor = vec4(c*(${wire ? '.35' : '.08'}+f*${wire ? '.6' : '.8'}), (${wire ? '0.5' : '0.9'})*uFade);
+    }`
+});
+const hero = new THREE.Group();
+hero.add(new THREE.Mesh(new THREE.IcosahedronGeometry(2.4, 10), orbMat(false)));
+hero.add(new THREE.Mesh(new THREE.IcosahedronGeometry(2.42, 5), orbMat(true)));
+hero.position.set(3.2, 0, 0);
+scene.add(hero);
+
+/* ---------- 2. ABOUT: torus knot ---------- */
+const about = new THREE.Group();
+about.add(new THREE.Mesh(new THREE.TorusKnotGeometry(1.8, 0.45, 220, 24, 2, 3), new THREE.MeshStandardMaterial({ color: 0x1a0c0e, metalness: 0.9, roughness: 0.25 })));
+about.add(new THREE.Mesh(new THREE.TorusKnotGeometry(1.82, 0.47, 120, 12, 2, 3), new THREE.MeshBasicMaterial({ color: colB, wireframe: true, transparent: true, opacity: 0.45 })));
+about.position.set(3.5, 0, -16);
+scene.add(about);
+
+/* ---------- 3. SKILLS: orbiting label ring ---------- */
+const skills = new THREE.Group();
+skills.position.set(-3.5, 0, -36);
+skills.rotation.x = 0.35;
+scene.add(skills);
+const skillLabels = [];
+{
+  const core = new THREE.Mesh(new THREE.SphereGeometry(1.1, 48, 48), new THREE.MeshStandardMaterial({ color: 0x000000, emissive: colA, emissiveIntensity: 1.6 }));
+  skills.add(core);
+  skills.add(new THREE.Mesh(new THREE.TorusGeometry(6.4, 0.015, 8, 160), new THREE.MeshBasicMaterial({ color: colA, transparent: true, opacity: 0.6 })));
+  skills.add(new THREE.Mesh(new THREE.TorusGeometry(4.2, 0.012, 8, 160), new THREE.MeshBasicMaterial({ color: colB, transparent: true, opacity: 0.5 })));
+  CONFIG.skills.forEach((name, i) => {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+    const x = c.getContext('2d');
+    x.font = '600 56px "Space Grotesk", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    const w = x.measureText(name).width + 70;
+    x.fillStyle = 'rgba(24,10,12,.88)'; x.strokeStyle = i % 2 ? '#' + colB.getHexString() : '#' + colA.getHexString(); x.lineWidth = 4;
+    x.beginPath(); x.roundRect(256 - w / 2, 14, w, 100, 50); x.fill(); x.stroke();
+    x.fillStyle = '#fff'; x.fillText(name, 256, 66);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+    sp.scale.set(3.2, 0.8, 1);
+    const a = (i / CONFIG.skills.length) * Math.PI * 2, r = i % 2 ? 4.2 : 6.4;
+    sp.userData = { a, r, sp: (i % 2 ? -1 : 1) * (0.12 + (i % 3) * 0.03) };
+    skills.add(sp); skillLabels.push(sp);
+  });
+}
+
+/* ---------- 4. PROJECTS: a planetary system you fly through ---------- */
+const SYS_CENTER = new THREE.Vector3(0, 0, -62);
+const system = new THREE.Group();
+system.position.copy(SYS_CENTER);
+system.rotation.x = 0.38;
+scene.add(system);
+const planets = [];
+const planetMeshes = [];
+let focus = -1, lastFocus = 0, focusBlend = 0;
+{
+  // sun
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(1.7, 48, 48), new THREE.MeshBasicMaterial({ color: colA.clone().lerp(new THREE.Color(1, 1, 1), 0.5) }));
+  system.add(sun);
+  const gc = document.createElement('canvas'); gc.width = gc.height = 256;
+  const gx = gc.getContext('2d'), gg = gx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gg.addColorStop(0, 'rgba(255,255,255,.95)'); gg.addColorStop(0.25, '#' + colA.getHexString() + 'aa'); gg.addColorStop(1, 'rgba(0,0,0,0)');
+  gx.fillStyle = gg; gx.fillRect(0, 0, 256, 256);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(gc), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+  glow.scale.set(11, 11, 1); system.add(glow);
+
+  const vert = `
+    varying vec3 vP; varying vec3 vWN; varying vec3 vWP; varying vec3 vV;
+    void main(){ vP = position; vWN = normalize(mat3(modelMatrix) * normal);
+      vec4 wp = modelMatrix * vec4(position, 1.); vWP = wp.xyz; vV = cameraPosition - wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp; }`;
+  const frag = `
+    uniform vec3 c1, c2, rim, lightPos; uniform float seed, hover, bands, fade;
+    varying vec3 vP; varying vec3 vWN; varying vec3 vWP; varying vec3 vV;
+    float h(vec3 p){ p = fract(p * .3183099 + .1); p *= 17.; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+    float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3. - 2. * f);
+      return mix(mix(mix(h(i), h(i + vec3(1,0,0)), f.x), mix(h(i + vec3(0,1,0)), h(i + vec3(1,1,0)), f.x), f.y),
+                 mix(mix(h(i + vec3(0,0,1)), h(i + vec3(1,0,1)), f.x), mix(h(i + vec3(0,1,1)), h(i + vec3(1,1,1)), f.x), f.y), f.z); }
+    float fbm(vec3 p){ float a = .5, s = 0.; for(int i = 0; i < 4; i++){ s += a * n3(p); p *= 2.03; a *= .5; } return s; }
+    void main(){
+      vec3 p = normalize(vP);
+      float b = fbm(vec3(p.x * 2., p.y * bands + fbm(p * 3. + seed) * 1.6, p.z * 2.) + seed);
+      vec3 col = mix(c1, c2, smoothstep(.25, .75, b));
+      vec3 N = normalize(vWN), L = normalize(lightPos - vWP);
+      float d = max(dot(N, L), 0.);
+      float f = pow(1. - max(dot(N, normalize(vV)), 0.), 2.5);
+      vec3 c = col * (.16 + d * 1.05) + rim * f * (.55 + hover * 1.3) + col * hover * .3;
+      gl_FragColor = vec4(c, fade);
+    }`;
+
+  const makeLabel = (text, featured) => {
+    const c = document.createElement('canvas'); c.width = 640; c.height = 112;
+    const x = c.getContext('2d');
+    x.font = '700 54px "Space Grotesk", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.shadowColor = 'rgba(10,6,7,.95)'; x.shadowBlur = 14;
+    x.fillStyle = featured ? '#ffd36b' : '#ffffff';
+    x.fillText((featured ? '★ ' : '') + text, 320, 56);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, depthTest: false }));
+    sp.scale.set(6.6, 1.155, 1); sp.renderOrder = 10;
+    return sp;
+  };
+
+  const ORBIT = { hackathon: { R: 8.5, speed: 0.055, base: 8 }, project: { R: 15.5, speed: -0.035, base: 322 } };
+  ['hackathon', 'project'].forEach((row) => {
+    const o = ORBIT[row];
+    const orbitLine = new THREE.Mesh(new THREE.TorusGeometry(o.R, 0.025, 8, 220), new THREE.MeshBasicMaterial({ color: row === 'hackathon' ? colA : colB, transparent: true, opacity: 0.35 }));
+    orbitLine.rotation.x = Math.PI / 2; system.add(orbitLine);
+    const list = CONFIG.projects.filter((p) => p.row === row);
+    list.forEach((p, i) => {
+      const featured = i < CONFIG.featuredPerRow;
+      const hue = (o.base + i * 9) % 360;
+      const r = featured ? 1.55 : 0.95 - Math.min(i, 7) * 0.02;
+      const col = (hh, ss, ll) => new THREE.Color(`hsl(${hh},${ss}%,${ll}%)`);
+      const mat = new THREE.ShaderMaterial({
+        vertexShader: vert, fragmentShader: frag, transparent: true,
+        uniforms: {
+          c1: { value: col(hue, 80, 58) }, c2: { value: col((hue + 28) % 360, 75, 26) },
+          rim: { value: featured ? new THREE.Color('#ffd36b') : col(hue, 100, 70) },
+          lightPos: { value: SYS_CENTER }, seed: { value: i * 7.3 + (row === 'project' ? 40 : 0) },
+          hover: { value: 0 }, fade: { value: 1 }, bands: { value: 2.5 + (i % 4) * 1.5 }
+        }
+      });
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 48, 48), mat);
+      mesh.position.x = o.R;
+      if (featured) {
+        const halo = new THREE.Mesh(new THREE.RingGeometry(r * 1.45, r * 1.85, 96), new THREE.MeshBasicMaterial({ color: 0xffd36b, side: THREE.DoubleSide, transparent: true, opacity: 0.75 }));
+        halo.rotation.x = Math.PI / 2.3; mesh.add(halo);
+      }
+      const label = makeLabel(p.title, featured);
+      label.position.set(0, -(r + 1.05), 0); mesh.add(label);
+      const pivot = new THREE.Group();
+      const a0 = (i / list.length) * Math.PI * 2 + (row === 'project' ? 0.6 : 0);
+      pivot.add(mesh); system.add(pivot);
+      mesh.userData.idx = planets.length;
+      planets.push({ mesh, pivot, mat, label, project: p, row, featured, r, a0, speed: o.speed, hover: 0 });
+      planetMeshes.push(mesh);
+    });
+  });
+}
+
+/* ---------- 5. CONTACT: particle globe ---------- */
+const contact = new THREE.Group();
+contact.position.set(0, 0, -96);
+scene.add(contact);
+{
+  const N = 3500, pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const u = Math.random() * 2 - 1, t = Math.random() * Math.PI * 2, r = 3.6 + Math.random() * 0.15, s = Math.sqrt(1 - u * u);
+    pos.set([r * s * Math.cos(t), r * u, r * s * Math.sin(t)], i * 3);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  contact.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 0.06, color: colA, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(5.2, 0.03, 12, 200), new THREE.MeshBasicMaterial({ color: colB }));
+  ring.rotation.x = 1.2; contact.add(ring);
+  const ring2 = ring.clone(); ring2.rotation.set(0.4, 0.6, 0); ring2.scale.setScalar(1.2); ring2.material = new THREE.MeshBasicMaterial({ color: colA, transparent: true, opacity: 0.6 }); contact.add(ring2);
+}
+
+/* ---------- camera path (one keyframe per section) ---------- */
+const camPts = [
+  [0, 0, 10],        // hero
+  [-2.5, 1, -8],     // about
+  [4, 3.5, -25],     // skills
+  [0, 11, -37],      // projects (above the orbital plane)
+  [10, 6, -88]       // contact
+].map((p) => new THREE.Vector3(...p));
+const lookPts = [
+  [1.5, 0, 0],
+  [3.5, 0, -16],
+  [-3.5, 0, -36],
+  [0, 0, -62],
+  [0, 0, -96]
+].map((p) => new THREE.Vector3(...p));
+const camCurve = new THREE.CatmullRomCurve3(camPts, false, 'centripetal');
+const lookCurve = new THREE.CatmullRomCurve3(lookPts, false, 'centripetal');
+
+/* ---------- fit the whole planetary system on screen, at any window size ---------- */
+function fitSystem() {
+  const th = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), tw = th * camera.aspect;
+  const D = Math.max(Math.max(19.5 / tw, 17.5 / th) * 1.2, 30), elev = 0.62;
+  camPts[3].set(0, Math.sin(elev) * D, SYS_CENTER.z + Math.cos(elev) * D);
+}
+
+/* ---------- focus fade: scenes outside the current section recede ---------- */
+const FADE_FLOOR = 0.14;
+const fadeSets = [hero, about, skills, system, contact].map((g) => {
+  const items = [];
+  g.traverse((o) => {
+    if (!o.material) return;
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
+      if (m.isShaderMaterial) items.push({ m });
+      else { m.transparent = true; items.push({ m, base: m.opacity }); }
+    });
+  });
+  return items;
+});
+function applyFade(sTime) {
+  fadeSets.forEach((items, i) => {
+    const x = Math.max(0, 1 - Math.abs(sTime - i / (fadeSets.length - 1)) / 0.2);
+    const w = FADE_FLOOR + (1 - FADE_FLOOR) * x * x * (3 - 2 * x);
+    items.forEach(({ m, base }) => {
+      if (m.isShaderMaterial) { if (m.uniforms.fade) m.uniforms.fade.value = w; if (m.uniforms.uFade) m.uniforms.uFade.value = w; }
+      else m.opacity = base * w;
+    });
+  });
+}
+
+/* ---------- input ---------- */
+const mouse = new THREE.Vector2(), mouseS = new THREE.Vector2();
+addEventListener('pointermove', (e) => {
+  mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+});
+let scrollT = 0, scrollS = 0;
+const progressBar = $('#progress');
+const onScroll = () => {
+  const max = document.documentElement.scrollHeight - innerHeight;
+  scrollT = max > 0 ? scrollY / max : 0;
+  progressBar.style.width = scrollT * 100 + '%';
+  if (focus >= 0 && Math.abs(scrollT - 0.75) > 0.08) setFocus(-1);
+};
+addEventListener('scroll', onScroll, { passive: true }); onScroll();
+
+const ray = new THREE.Raycaster();
+let hovered = null, hintDone = false;
+const hint = $('#hint');
+const detail = $('#detail');
+function renderDetail(i) {
+  const P = planets[i], p = P.project;
+  detail.replaceChildren(
+    el('div', { className: 'eyebrow', textContent: [P.featured ? '★ Featured' : '', p.event, p.badge].filter(Boolean).join(' · ') }),
+    el('h3', { textContent: p.title }),
+    el('p', { textContent: p.detail || p.desc }),
+    el('div', { className: 'chips' }, p.tags.map((t) => el('span', { className: 'chip', textContent: t }))),
+    el('div', { className: 'row' },
+      p.link ? el('a', { className: 'btn primary', href: p.link, target: '_blank', rel: 'noopener', textContent: 'View project' }) : '',
+      el('button', { className: 'btn', textContent: '←', ariaLabel: 'Previous', onclick: () => setFocus((focus + planets.length - 1) % planets.length) }),
+      el('button', { className: 'btn', textContent: '→', ariaLabel: 'Next', onclick: () => setFocus((focus + 1) % planets.length) }),
+      el('button', { className: 'btn', textContent: 'Back', onclick: () => setFocus(-1) }))
+  );
+}
+function setFocus(i) {
+  if (focus >= 0) lastFocus = focus;
+  focus = i;
+  if (i >= 0) { lastFocus = i; renderDetail(i); hintDone = true; }
+  detail.classList.toggle('open', i >= 0);
+  document.body.classList.toggle('focusing', i >= 0);
+}
+addEventListener('keydown', (e) => {
+  if (focus < 0) return;
+  if (e.key === 'Escape') setFocus(-1);
+  if (e.key === 'ArrowRight') setFocus((focus + 1) % planets.length);
+  if (e.key === 'ArrowLeft') setFocus((focus + planets.length - 1) % planets.length);
+});
+// canvas sits under <main>, so listen on window for clicks that land on empty page space
+addEventListener('click', (e) => {
+  if (e.target.closest('#detail, nav, .btn, .chip, a, .panel')) return;
+  if (hovered) setFocus(hovered.userData.idx);
+  else if (focus >= 0) setFocus(-1);
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.fov = camera.aspect < 1 ? 85 : 60; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+  placeHero();
+  fitSystem();
+  onScroll();
+});
+function placeHero() { const narrow = innerWidth < 800; hero.position.set(narrow ? 0 : 3.2, narrow ? -1.5 : 0, narrow ? -7 : 0); }
+placeHero();
+camera.fov = camera.aspect < 1 ? 85 : 60; camera.updateProjectionMatrix();
+fitSystem();
+
+/* ---------- loop ---------- */
+const clock = new THREE.Clock();
+const look = new THREE.Vector3(), camPos = new THREE.Vector3();
+const tmpP = new THREE.Vector3(), tmpO = new THREE.Vector3(), tmpR = new THREE.Vector3(), fPos = new THREE.Vector3(), fLook = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+let orbitT = 0, orbitFactor = 1;
+const dots = [...nav.children];
+let activeIdx = -1;
+
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.5), t = clock.elapsedTime;
+  scrollS += (scrollT - scrollS) * (1 - Math.pow(0.001, dt));
+  mouseS.lerp(mouse, 1 - Math.pow(0.01, dt));
+
+  // camera along the path + mouse parallax
+  camCurve.getPoint(scrollS, camPos);
+  lookCurve.getPoint(scrollS, look);
+  const inProjects = Math.max(0, 1 - Math.abs(scrollS - 0.75) * 5);
+  focusBlend += ((focus >= 0 ? 1 : 0) - focusBlend) * (1 - Math.pow(0.003, dt));
+  if (focusBlend > 0.001) {
+    const P = planets[lastFocus];
+    P.mesh.getWorldPosition(tmpP);
+    tmpO.copy(tmpP).sub(SYS_CENTER); tmpO.y *= 0.3; tmpO.normalize();
+    fPos.copy(tmpP).addScaledVector(tmpO, P.r * 3.4 + 3.2); fPos.y += P.r * 0.7;
+    if (innerWidth < 800) { fLook.copy(tmpP); fLook.y -= P.r * 1.3; }
+    else { tmpR.crossVectors(tmpO.clone().negate(), UP); fLook.copy(tmpP).addScaledVector(tmpR, P.r * 1.8); }
+    camPos.lerp(fPos, focusBlend); look.lerp(fLook, focusBlend);
+  }
+  const mk = 1 - focusBlend;
+  camera.position.copy(camPos);
+  camera.position.x += mouseS.x * 0.6 * mk;
+  camera.position.y += mouseS.y * 0.4 * mk;
+  look.x += mouseS.x * (1.5 + inProjects * 2) * mk;
+  look.y += mouseS.y * 0.8 * mk;
+  camera.lookAt(look);
+
+  // animate world
+  uniforms.uTime.value = t;
+  uniforms.uMouse.value.set(mouseS.x, mouseS.y);
+  hero.rotation.y = t * 0.15; hero.rotation.x = t * 0.07;
+  about.rotation.x = t * 0.2; about.rotation.y = t * 0.3;
+  skills.rotation.y = t * 0.1;
+  skillLabels.forEach((s) => {
+    const a = s.userData.a + t * s.userData.sp;
+    s.position.set(Math.cos(a) * s.userData.r, Math.sin(a * 2) * 0.4, Math.sin(a) * s.userData.r);
+  });
+  contact.rotation.y = t * 0.12; contact.rotation.z = Math.sin(t * 0.3) * 0.1;
+  debris.forEach((d) => {
+    d.rotation.x += d.userData.s.x * dt; d.rotation.y += d.userData.s.y * dt;
+    d.position.y = d.userData.y + Math.sin(t * 0.5 + d.userData.p) * 0.8;
+  });
+  scene.getObjectByName('stars').rotation.z = t * 0.01;
+
+  // planets: orbit, spin, hover
+  ray.setFromCamera(mouse, camera);
+  const hit = inProjects > 0.3 ? ray.intersectObjects(planetMeshes)[0] : null;
+  hovered = hit ? hit.object : null;
+  document.body.style.cursor = hovered ? 'pointer' : '';
+  orbitFactor += ((focus >= 0 ? 0 : hovered ? 0.2 : 1) - orbitFactor) * (1 - Math.pow(0.01, dt));
+  orbitT += dt * orbitFactor;
+  planets.forEach((P) => {
+    P.pivot.rotation.y = P.a0 + P.speed * orbitT;
+    P.mesh.rotation.y += dt * 0.25;
+    P.hover += (((P.mesh === hovered || planets.indexOf(P) === focus) ? 1 : 0) - P.hover) * (1 - Math.pow(0.001, dt));
+    P.mat.uniforms.hover.value = P.hover;
+    P.label.visible = planets.indexOf(P) !== focus;
+    P.mesh.scale.setScalar(1 + P.hover * 0.15);
+  });
+
+  applyFade(scrollS);
+
+  // nav state
+  const idx = Math.round(scrollS * (sections.length - 1));
+  hint.classList.toggle('show', idx === 3 && focus < 0 && !hintDone && scrollS > 0.68);
+  if (idx !== activeIdx) { activeIdx = idx; dots.forEach((d, i) => d.classList.toggle('on', i === idx)); }
+
+  composer.render();
+  requestAnimationFrame(frame);
+}
+frame();
+document.fonts.ready.then(() => setTimeout(() => $('#loader').classList.add('done'), 300));
+setTimeout(() => $('#loader').classList.add('done'), 3000);
+</script>
+</body>
+</html>
